@@ -26,18 +26,23 @@ class NoteContentTestCase(TestCase):
 
     def test_notes_list_for_different_users(self):
         url = reverse('notes:list')
-        response_author = self.author_client.get(url)
-        response_admin = self.admin_client.get(url)
-        object_list_author = response_author.context['object_list']
-        object_list_admin = response_admin.context['object_list']
-        self.assertEqual(self.note in object_list_author, True)
-        self.assertEqual(self.note in object_list_admin, False)
+        clients = (
+            (self.author_client, True),
+            (self.admin_client, False),
+        )
+        for client, note_in_list in clients:
+            with self.subTest(client=client):
+                response = client.get(url)
+                object_list = response.context['object_list']
+                self.assertEqual(self.note in object_list, note_in_list)
 
-    def test_pages_contains_form(self):
-        url_add = reverse('notes:add')
-        response_add = self.author_client.get(url_add)
-        self.assertIn('form', response_add.context)
-
-        url_edit = reverse('notes:edit', args=[self.note.slug])
-        response_edit = self.author_client.get(url_edit)
-        self.assertIn('form', response_edit.context)
+    def test_pages_contains_form(self):    
+        urls = [
+            ('notes:add', None),
+            ('notes:edit', (self.note.slug,)),
+        ]
+        for url_name, args in urls:
+            with self.subTest(url_name=url_name):
+                url = reverse(url_name, args=args) if args else reverse(url_name)
+                response = self.author_client.get(url)
+                self.assertIn('form', response.context)
